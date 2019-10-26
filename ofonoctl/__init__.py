@@ -91,60 +91,25 @@ def action_list():
     print(tabulate.tabulate(result, headers=["Modem", "Status", "SIM"]))
 
 
-def action_poweron():
+def action_power(component, state, command):
+    message = {
+        'poweron': ["Powered on {}", "Could not power on {}"],
+        'poweroff': ["Powered off {}", "Could not power off {}"],
+        'online': ["Brought {} online", "Could not online {}"],
+        'offline': ["Took {} offline", "Could not offline {}"]
+    }
+
     init()
     global manager, bus
     modems = manager.GetModems()
     for path, properties in modems:
         model = path[1:]
         modem = dbus.Interface(bus.get_object('org.ofono', path), 'org.ofono.Modem')
-        if set_property_wait(modem, "Powered", dbus.Boolean(1)):
-            print("Powered on {}".format(model))
+        if set_property_wait(modem, component, dbus.Boolean(1 if state else 0)):
+            print(message[command][0].format(model))
             return
         else:
-            fatal("Could not power on {}".format(model))
-
-
-def action_poweroff():
-    init()
-    global manager, bus
-    modems = manager.GetModems()
-    for path, properties in modems:
-        model = path[1:]
-        modem = dbus.Interface(bus.get_object('org.ofono', path), 'org.ofono.Modem')
-        if set_property_wait(modem, "Powered", dbus.Boolean(0)):
-            print("Powered off {}".format(model))
-            return
-        else:
-            fatal("Could not power off {}".format(model))
-
-
-def action_online():
-    init()
-    global manager, bus
-    modems = manager.GetModems()
-    for path, properties in modems:
-        model = path[1:]
-        modem = dbus.Interface(bus.get_object('org.ofono', path), 'org.ofono.Modem')
-        if set_property_wait(modem, "Online", dbus.Boolean(1)):
-            print("Brought {} online".format(model))
-            return
-        else:
-            fatal("Could not online {}".format(model))
-
-
-def action_offline():
-    init()
-    global manager, bus
-    modems = manager.GetModems()
-    for path, properties in modems:
-        model = path[1:]
-        modem = dbus.Interface(bus.get_object('org.ofono', path), 'org.ofono.Modem')
-        if set_property_wait(modem, "Online", dbus.Boolean(0)):
-            print("Brought {} offline".format(model))
-            return
-        else:
-            fatal("Could not offline {}".format(model))
+            fatal(message[command][1].format(model))
 
 
 def action_scan_operators():
@@ -181,19 +146,19 @@ def main():
         return
 
     if args.action == "poweron":
-        action_poweron()
+        action_power('Powered', True, 'poweron')
         return
 
     if args.action == "poweroff":
-        action_poweroff()
+        action_power('Powered', True, 'poweroff')
         return
 
     if args.action == "online":
-        action_online()
+        action_power('Online', True, 'online')
         return
 
     if args.action == "offline":
-        action_offline()
+        action_power('Online', True, 'offline')
         return
 
     if args.action == "scan":
