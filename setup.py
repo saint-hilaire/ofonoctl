@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='ofonoctl',
-    version='0.1.0',
+    version='0.1.1',
     packages=['ofonoctl'],
     url='https://git.sr.ht/~martijnbraam/ofonoctl',
     license='MIT',
@@ -15,9 +15,12 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5'
-        'Programming Language :: Python :: 3.6'
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7'
+    ],
+    install_requires=[
+        'tabulate'
     ],
     entry_points={
         'console_scripts': [
