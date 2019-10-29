@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='ofonoctl',
-    version='0.1.1',
+    version='0.2.0',
     packages=['ofonoctl'],
     url='https://git.sr.ht/~martijnbraam/ofonoctl',
     license='MIT',

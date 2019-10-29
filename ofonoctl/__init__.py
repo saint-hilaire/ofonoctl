@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
+import subprocess
 import time
-
+import ipaddress
 import dbus
 import sys
 import argparse
@@ -63,6 +64,11 @@ def action_list():
             network_name = str(properties["Name"])
             if status == "searching":
                 registration = "Searching"
+            elif status == "denied":
+                registration = "Denied"
+            elif status == "registered":
+                strength = float(properties["Strength"])
+                registration = "Registered to {} ({}%)".format(network_name, strength)
             else:
                 registration = "{}, {}".format(status, network_name)
         except dbus.exceptions.DBusException:
@@ -72,7 +78,10 @@ def action_list():
             sim_manager = dbus.Interface(bus.get_object('org.ofono', path), 'org.ofono.SimManager')
             properties = sim_manager.GetProperties()
             if properties['Present'] == 1:
-                sim = properties['ServiceProviderName']
+                if 'ServiceProviderName' in properties:
+                    sim = properties['ServiceProviderName']
+                else:
+                    sim = 'Unknown'
             else:
                 sim = "No SIM"
         except dbus.exceptions.DBusException:
@@ -129,6 +138,40 @@ def action_scan_operators():
     print(tabulate.tabulate(result, headers=['Operator', 'Status', 'Technology', 'MCC']))
 
 
+def action_wan(connect=False):
+    init()
+    global manager, bus
+    modem = manager.GetModems()[0][0]
+    connman = dbus.Interface(bus.get_object('org.ofono', modem), 'org.ofono.ConnectionManager')
+    result = []
+    for path, properties in connman.GetContexts():
+        settings4 = properties['Settings']
+        settings6 = properties['IPv6.Settings']
+        if "Method" in settings4:
+            s = settings4
+            address = s["Address"] if s["Method"] == "static" else ""
+            gateway = s["Gateway"] if s["Method"] == "static" else ""
+            dns = ", ".join(s["DomainNameServers"]) if s["Method"] == "static" else ""
+            if len(address) > 0:
+                address += "/" + str(ipaddress.IPv4Network('0.0.0.0/{}'.format(s["Netmask"])).prefixlen)
+            result.append([s["Interface"], "ipv4", properties["AccessPointName"], s["Method"], address, gateway, dns])
+
+            if connect and s["Method"] == "static":
+                cmd = ['ip', 'addr', 'add', address, 'dev', s["Interface"]]
+                subprocess.check_output(cmd)
+                cmd = ['ip', 'route', 'add', 'default', 'via', gateway, 'dev', s["Interface"]]
+                subprocess.check_output(cmd)
+
+        if "Method" in settings6:
+            s = settings6
+            address = s["Address"] if s["Method"] == "static" else ""
+            gateway = s["Gateway"] if s["Method"] == "static" else ""
+            dns = ", ".join(s["DomainNameServers"]) if s["Method"] == "static" else ""
+            result.append([s["Interface"], "ipv6", properties["AccessPointName"], s["Method"], address, gateway, dns])
+
+    print(tabulate.tabulate(result, headers=["Interface", "Protocol", "APN", "Method", "Address", "Gateway", "DNS"]))
+
+
 def main():
     parser = argparse.ArgumentParser(description="Ofono control tool")
     sub = parser.add_subparsers(title="action", dest="action")
@@ -137,7 +180,9 @@ def main():
     sub.add_parser('poweroff', help="Disable power to modem")
     sub.add_parser('online', help="Enable modem")
     sub.add_parser('offline', help="Disable modem")
-    sub.add_parser('scan', help="Scan operators")
+    sub.add_parser('operators', help="Display operator info")
+    parser_wan = sub.add_parser('wan', help="Control internet access")
+    parser_wan.add_argument('--connect', help="Bring up first connection", action="store_true")
 
     args = parser.parse_args()
 
@@ -161,8 +206,12 @@ def main():
         action_power('Online', True, 'offline')
         return
 
-    if args.action == "scan":
+    if args.action == "operators":
         action_scan_operators()
+        return
+
+    if args.action == "wan":
+        action_wan(args.connect)
         return
 
 
