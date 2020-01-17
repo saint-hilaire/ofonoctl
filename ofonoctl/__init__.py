@@ -5,6 +5,7 @@ import ipaddress
 import dbus
 import sys
 import argparse
+import re
 
 import tabulate
 
@@ -13,7 +14,7 @@ manager = None
 
 
 def fatal(*args, **kwargs):
-    print(*args, file=sys.stderr, **kwargs)
+    print(*args, file=sys.stderr, ** kwargs)
     exit(1)
 
 
@@ -138,7 +139,7 @@ def action_scan_operators():
     print(tabulate.tabulate(result, headers=['Operator', 'Status', 'Technology', 'MCC']))
 
 
-def action_wan(connect=False):
+def action_wan(connect=False, resolv=False):
     init()
     global manager, bus
     modem = manager.GetModems()[0][0]
@@ -161,6 +162,8 @@ def action_wan(connect=False):
                 subprocess.check_output(cmd)
                 cmd = ['ip', 'route', 'add', 'default', 'via', gateway, 'dev', s["Interface"]]
                 subprocess.check_output(cmd)
+            if resolv and s["Method"] == "static":
+                update_resolvconf(s["DomainNameServers"])
 
         if "Method" in settings6:
             s = settings6
@@ -170,6 +173,27 @@ def action_wan(connect=False):
             result.append([s["Interface"], "ipv6", properties["AccessPointName"], s["Method"], address, gateway, dns])
 
     print(tabulate.tabulate(result, headers=["Interface", "Protocol", "APN", "Method", "Address", "Gateway", "DNS"]))
+
+
+def update_resolvconf(nameservers):
+    with open('/etc/resolv.conf') as handle:
+        current = handle.read()
+
+    header = 'DNS servers set by ofonoctl'
+    regex = r"# {}.+# end\n".format(header)
+
+    new_block = '# {}\n'.format(header)
+    for ns in nameservers:
+        new_block += 'nameserver {}\n'.format(ns)
+    new_block += '# end\n'
+
+    if header in current:
+        new_file = re.sub(regex, new_block, current, flags=re.MULTILINE | re.DOTALL)
+    else:
+        new_file = current + '\n' + new_block
+
+    with open('/etc/resolv.conf', 'w') as handle:
+        handle.write(new_file)
 
 
 def main():
@@ -183,6 +207,8 @@ def main():
     sub.add_parser('operators', help="Display operator info")
     parser_wan = sub.add_parser('wan', help="Control internet access")
     parser_wan.add_argument('--connect', help="Bring up first connection", action="store_true")
+    parser_wan.add_argument('--append-dns', help="Add the providers DNS servers to /etc/resolv.conf",
+                            dest="resolv", action="store_true")
 
     args = parser.parse_args()
 
@@ -211,7 +237,7 @@ def main():
         return
 
     if args.action == "wan":
-        action_wan(args.connect)
+        action_wan(args.connect, args.resolv)
         return
 
 
