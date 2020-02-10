@@ -14,7 +14,7 @@ manager = None
 
 
 def fatal(*args, **kwargs):
-    print(*args, file=sys.stderr, ** kwargs)
+    print(*args, file=sys.stderr, **kwargs)
     exit(1)
 
 
@@ -162,9 +162,29 @@ def action_wan(connect=False, resolv=False):
         exit(1)
     modem = modems[0][0]
 
+    if 'Powered' in modems[0][1]:
+        powered = modems[0][1]['Powered'] == 1
+        if not powered:
+            print("The modem is not powered, can't control WAN settings")
+            print("You can power on the modem using ofonoctl poweron")
+            exit(1)
+
+    if 'Online' in modems[0][1]:
+        online = modems[0][1]['Online'] == 1
+        if not online:
+            print("The modem is offline, can't control WAN settings")
+            print("You can bring the modem online using ofonoctl online")
+            exit(1)
+
     connman = dbus.Interface(bus.get_object('org.ofono', modem), 'org.ofono.ConnectionManager')
+    try:
+        contexts = connman.GetContexts()
+    except dbus.exceptions.DBusException:
+        print("Could not fetch contexts on the modem")
+        exit(1)
+
     result = []
-    for path, properties in connman.GetContexts():
+    for path, properties in contexts:
         settings4 = properties['Settings']
         settings6 = properties['IPv6.Settings']
         if "Method" in settings4:
