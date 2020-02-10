@@ -121,6 +121,12 @@ def action_power(component, state, command):
         print("No modems found")
         exit(1)
 
+    if component == 'Online' and state:
+        powered = modems[0][1]['Powered'] == 1
+        if not powered:
+            print("Trying to online a modem that's not powered on. Running power on first...")
+            action_power('Powered', True, 'poweron')
+
     for path, properties in modems:
         model = path[1:]
         modem = dbus.Interface(bus.get_object('org.ofono', path), 'org.ofono.Modem')
