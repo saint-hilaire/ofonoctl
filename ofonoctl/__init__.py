@@ -48,6 +48,10 @@ def action_list():
 
     result = []
 
+    if len(modems) == 0:
+        print("No modems found")
+        return
+
     for path, properties in modems:
         model = path[1:]
         powered = False
@@ -112,6 +116,11 @@ def action_power(component, state, command):
     init()
     global manager, bus
     modems = manager.GetModems()
+
+    if len(modems) == 0:
+        print("No modems found")
+        exit(1)
+
     for path, properties in modems:
         model = path[1:]
         modem = dbus.Interface(bus.get_object('org.ofono', path), 'org.ofono.Modem')
@@ -125,7 +134,12 @@ def action_power(component, state, command):
 def action_scan_operators():
     init()
     global manager, bus
-    modem = manager.GetModems()[0][0]
+    modems = manager.GetModems()
+    if len(modems) == 0:
+        print("No modems found")
+        exit(1)
+    modem = modems[0][0]
+
     netreg = dbus.Interface(bus.get_object('org.ofono', modem), 'org.ofono.NetworkRegistration')
 
     print("Scanning for operators... (100 seconds)")
@@ -142,7 +156,12 @@ def action_scan_operators():
 def action_wan(connect=False, resolv=False):
     init()
     global manager, bus
-    modem = manager.GetModems()[0][0]
+    modems = manager.GetModems()
+    if len(modems) == 0:
+        print("No modems found")
+        exit(1)
+    modem = modems[0][0]
+
     connman = dbus.Interface(bus.get_object('org.ofono', modem), 'org.ofono.ConnectionManager')
     result = []
     for path, properties in connman.GetContexts():
