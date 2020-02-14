@@ -68,3 +68,15 @@ $ ofonoctl wan --connect --append-dns
 ```
 
 After this you should have an internet connection.
+
+## Sending SMS
+
+The `sms` command can be used to send sms messages.
+
+```shell-session
+$ ofonoctl sms +31[number] -m "Hello World!"
+Send
+$ ofonoctl sms +31[number]
+[your $EDITOR launches]
+Send
+```

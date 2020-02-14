@@ -253,6 +253,20 @@ def action_sms(destination, message=None):
     print("Sent")
 
 
+def action_sms_get():
+    init()
+    global manager, bus
+    modems = manager.GetModems()
+    if len(modems) == 0:
+        print("No modems found")
+        exit(1)
+    modem = modems[0][0]
+
+    mm = dbus.Interface(bus.get_object('org.ofono', modem), 'org.ofono.MessageManager')
+    messages = mm.GetMessages()
+    print(messages)
+
+
 def update_resolvconf(nameservers):
     with open('/etc/resolv.conf') as handle:
         current = handle.read()
@@ -290,6 +304,7 @@ def main():
     parser_sms = sub.add_parser('sms', help="Send sms message")
     parser_sms.add_argument('--message', '-m', help="The message, if left out your editor will be opened")
     parser_sms.add_argument('destination', help="Destination number for the message")
+    sub.add_parser('sms-list', help="List stored SMS messages")
 
     args = parser.parse_args()
 
@@ -323,6 +338,10 @@ def main():
 
     if args.action == "sms":
         action_sms(args.destination, args.message)
+        return
+
+    if args.action == "sms-list":
+        action_sms_get()
         return
 
 
