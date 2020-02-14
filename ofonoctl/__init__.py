@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 import subprocess
 import time
 import ipaddress
@@ -6,6 +7,7 @@ import dbus
 import sys
 import argparse
 import re
+import tempfile
 
 import tabulate
 
@@ -220,6 +222,37 @@ def action_wan(connect=False, resolv=False):
     print(tabulate.tabulate(result, headers=["Interface", "Protocol", "APN", "Method", "Address", "Gateway", "DNS"]))
 
 
+def action_sms(destination, message=None):
+    init()
+    global manager, bus
+    modems = manager.GetModems()
+    if len(modems) == 0:
+        print("No modems found")
+        exit(1)
+    modem = modems[0][0]
+
+    if message is None:
+        editor = 'nano'
+        if 'EDITOR' in os.environ:
+            editor = os.environ['EDITOR']
+        if 'VISUAL' in os.environ:
+            editor = os.environ['VISUAL']
+
+        buffer = tempfile.NamedTemporaryFile(suffix='.txt', prefix='sms-')
+        subprocess.call([editor, buffer.name])
+        buffer.seek(0)
+        message = buffer.read().decode().strip()
+        buffer.close()
+
+    if len(message) == 0:
+        print("Message empty. Aborting...")
+        exit(1)
+
+    mm = dbus.Interface(bus.get_object('org.ofono', modem), 'org.ofono.MessageManager')
+    mm.SendMessage(destination, message)
+    print("Sent")
+
+
 def update_resolvconf(nameservers):
     with open('/etc/resolv.conf') as handle:
         current = handle.read()
@@ -254,6 +287,9 @@ def main():
     parser_wan.add_argument('--connect', help="Bring up first connection", action="store_true")
     parser_wan.add_argument('--append-dns', help="Add the providers DNS servers to /etc/resolv.conf",
                             dest="resolv", action="store_true")
+    parser_sms = sub.add_parser('sms', help="Send sms message")
+    parser_sms.add_argument('--message', '-m', help="The message, if left out your editor will be opened")
+    parser_sms.add_argument('destination', help="Destination number for the message")
 
     args = parser.parse_args()
 
@@ -283,6 +319,10 @@ def main():
 
     if args.action == "wan":
         action_wan(args.connect, args.resolv)
+        return
+
+    if args.action == "sms":
+        action_sms(args.destination, args.message)
         return
 
 
