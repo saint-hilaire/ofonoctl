@@ -191,12 +191,20 @@ def action_wan(connect=False, resolv=False):
         print("Could not fetch contexts on the modem")
         exit(1)
 
+    has_flushed = False
+
     result = []
     for path, properties in contexts:
         settings4 = properties['Settings']
         settings6 = properties['IPv6.Settings']
         if "Method" in settings4:
             s = settings4
+
+            if connect and not has_flushed:
+                cmd = ['ip', 'addr', 'flush', 'dev', s['Interface']]
+                subprocess.check_output(cmd)
+                has_flushed = True
+
             address = s["Address"] if s["Method"] == "static" else ""
             gateway = s["Gateway"] if s["Method"] == "static" else ""
             dns = ", ".join(s["DomainNameServers"]) if s["Method"] == "static" else ""
@@ -214,6 +222,12 @@ def action_wan(connect=False, resolv=False):
 
         if "Method" in settings6:
             s = settings6
+
+            if connect and not has_flushed:
+                cmd = ['ip', 'addr', 'flush', 'dev', s['Interface']]
+                subprocess.check_output(cmd)
+                has_flushed = True
+
             address = s["Address"] if s["Method"] == "static" else ""
             gateway = s["Gateway"] if s["Method"] == "static" else ""
             dns = ", ".join(s["DomainNameServers"]) if s["Method"] == "static" else ""
