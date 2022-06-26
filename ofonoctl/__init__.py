@@ -4,12 +4,15 @@ import subprocess
 import time
 import ipaddress
 import dbus
+import dbus.mainloop.glib
 import sys
 import argparse
 import re
 import tempfile
 
 import tabulate
+
+from gi.repository import GLib
 
 bus = None
 manager = None
@@ -301,6 +304,27 @@ def update_resolvconf(nameservers):
     with open('/etc/resolv.conf', 'w') as handle:
         handle.write(new_file)
 
+def incoming_message(message, details, path, interface):
+    print("%s" % (message.encode('utf-8')))
+
+    for key in details:
+        val = details[key]
+        print("    %s = %s" % (key, val))
+
+def action_receive_sms():
+    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+    bus = dbus.SystemBus()
+
+    bus.add_signal_receiver(incoming_message, bus_name="org.ofono",
+        signal_name = "ImmediateMessage", path_keyword="path",
+        interface_keyword="interface")
+
+    bus.add_signal_receiver(incoming_message, bus_name="org.ofono",
+        signal_name = "IncomingMessage", path_keyword="path",
+        interface_keyword="interface")
+
+    mainloop = GLib.MainLoop()
+    mainloop.run()
 
 def main():
     parser = argparse.ArgumentParser(description="Ofono control tool")
@@ -319,6 +343,7 @@ def main():
     parser_sms.add_argument('--message', '-m', help="The message, if left out your editor will be opened")
     parser_sms.add_argument('destination', help="Destination number for the message")
     sub.add_parser('sms-list', help="List stored SMS messages")
+    sub.add_parser('receive-sms', help="Receive incoming SMS messages")
 
     args = parser.parse_args()
 
@@ -358,6 +383,9 @@ def main():
         action_sms_get()
         return
 
+    if args.action == "receive-sms":
+        action_receive_sms()
+        return
 
 if __name__ == '__main__':
     main()
